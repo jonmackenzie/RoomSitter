@@ -1,0 +1,275 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>RoomSitter</title>
+    <link rel="stylesheet" href="css/skeleton.css">
+    <script src="wavUtils.js"></script>
+    <script src="roomsitter.js"></script>
+</head>
+<body>
+    <div class="container">
+        <div class="row">
+            <h1 style="text-align: center;">RoomSitter</h1>
+        </div>
+        <button class="button" id="tldr">yeah whatever i'm not reading all that</button>
+        <div class="row" id="blahblahblah">
+            <p>
+                RoomSitter is an attempt to emulate the process of performing
+                <a href="https://www.youtube.com/watch?v=fAxHlLK3Oyk">Alvin Lucier's "I Am Sitting in a Room"</a>
+                entirely in a web browser using the WebAudio API. Instead of playing a recording into a room again and
+                again, RoomSitter convolves a recording with an impulse response of a room again and again.
+            </p>
+            <p>
+                In addition to repeated convolution, additional processing is also applied at each iteration which can
+                be said to emulate the "equipment" used to perform the re-recording. This includes some high-pass and
+                low-pass filtering, high and low shelving, compression, and subtle modulation of playback rate (and by
+                extension pitch) which all help in taming unpleasant feedback and/or clipping and providing (in my
+                opinion at least) a more interesting result more closely resembling the original than some other
+                re-creations using more "perfect" equipment. Advanced features are provided below to tweak the
+                parameters of this additional processing and an option is provided to pre-process the input with this
+                "virtual equipment"
+            </p>
+            <iframe width="560" height="315" src="https://www.youtube.com/embed/Yo6ZPAkrsS8?si=eO9aU1IivYeFTUR7" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe>
+            <hr/>
+            <p>
+                RoomSitter has three modes: single, discrete, and continuous:
+            </p>
+            <ul>
+                <li>
+                    In single mode each iteration takes as input the output of the previous iteration and all
+                    intermediate iterations are discarded, the output being only the final iteration.
+                </li>
+                <li>
+                    In discrete mode each iteration takes as input the output of the previous iteration and the result
+                    is the concatenation of these iterations, providing a history of how the final iteration evolved.
+                </li>
+                <li>
+                    In continuous mode each iteration takes as input the output of the previous iteration appended to
+                    the original input and the final result is the last iteration appended to the original input. This
+                    method is slower, with each iteration increasing in length not only by the IR length but also the
+                    original input length, but provides a single continuous piece where the tail of one iteration can
+                    extend smoothly into the next, much like Lucier's original recording.
+                </li>
+            </ul>
+            <p>
+                I've found a good workflow is to start in "single" mode with the desired number of iterations to more
+                quickly dial in the equiment parameters to something that sounds good before running "continuous" mode
+                to generate the full piece.
+            </p>
+            <hr/>
+            <p>
+                Regarding impulse responses: these can be found online or created manually, though the quality of
+                the result depends greatly on the quality of the impulse response so I would recommend using a good one.
+                I have had good results with some of the IRs provided by the "Sonic Palimpsest" project
+                <a href="https://research.kent.ac.uk/sonic-palimpsest/impulse-responses/">here</a>, especially the
+                "Ropery" IRs.
+            </p>
+            <p>
+                Regarding audio file to be played in the "virtual room": slow speech with plenty of pauses seems to
+                work best, allowing space for frequencies to settle down before being re-excited.
+            </p>
+            <p>
+                Regarding advanced settings: it's probably best to leave them alone if you don't know what the labels mean but:
+            </p>
+            <ul>
+                <li>
+                    If you hear clipping/crackling/distortion, try turning the input gain and/or output gain down
+                </li>
+                <li>
+                    If each iteration seems to be getting quieter, try increasing the input gain. If it is up all the way, try
+                    increasing the output gain or increasing the volume of your input and/or IR. Note that turning the HPF
+                    cutoff all the way down can also cause this due to buildup of low/subsonic frequencies interacting with the
+                    compressor/limiter.
+                </li>
+                <li>
+                    If your results are too "boomy" or bass-heavy, try decreasing the low shelf gain or bringing up the HPF
+                    frequency. If they are too shrill or treble-heavy, try decreasing the high shelf gain or bringing down
+                    the LPF frequency.
+                </li>
+                <li>
+                    If your result seems to get stuck on one frequency (just one big long note that doesn't change) try
+                    increasing the wow and/or flutter depth. Alternatively, try a less resonant IR.
+                </li>
+            </ul>
+            <p>
+                Please keep in mind that while the equipment settings do have a significant impact on the results, by far the
+                most important factors are the IR and the input audio. If either of these are poor quality, the result will
+                most likely be poor quality (though not necessarily in an uninteresting way)
+            </p>
+        </div>
+        <hr/>
+        <div class="row">
+            <div class="six columns">
+                <label for="impulseResponseInput">Select Impulse Response File:</label>
+                <input type="file" id="impulseResponseInput">
+            </div>
+            <div class="six columns">
+                <label for="audioInput">Select Audio File:</label>
+                <input type="file" id="audioInput">
+            </div>
+        </div>
+        <hr/>
+        <div class="row">
+            <div class="three columns">
+                <label for="iterations">Iterations:</label>
+                <input type="number" min="0" value="0" id="iterations">
+            </div>
+            <div class="three columns">
+                <label for="gap">Gap (seconds):</label>
+                <input type="number" min="0" value="0" id="gap">
+            </div>
+            <div class="three columns">
+                <label for="mode">Mode</label>
+                <select id="mode">
+                    <option value="single">Single</option>
+                    <option value="discrete">Discrete</option>
+                    <option value="continuous">Continuous</option>
+                </select>
+            </div>
+            <div class="three columns">
+                <label for="prepro">Preprocess Input</label>
+                <input type="checkbox" id="prepro" checked>
+            </div>
+        </div>
+        <br/>
+        <div class="row">
+            <div class="twelve columns">
+                <button id="sit" class="button-primary" style="width:100%">Sit in a room</button>
+            </div>
+        </div>
+        <div class="row">
+            <div id="progresscontainer" class="twelve columns">
+                <span id="progresstext"></span>
+            </div>
+        </div>
+        <hr/>
+        <h3>Advanced Settings</h3>
+        <div class="row">
+            <div class="three columns">
+                <label for="inputgain">Input Gain</label>
+                <input class="advctl" type="range" min="0" max="1" step="0.01" id="inputgain" value="0.65" oninput="this.nextElementSibling.value = Math.round(this.value * 100)">
+                <output>65</output>%
+            </div>
+            <div class="three columns">
+                <label for="outputgain">Output Gain</label>
+                <input class="advctl" type="range" min="0" max="1" step="0.01" id="outputgain" value="0.9" oninput="this.nextElementSibling.value = Math.round(this.value * 100)">
+                <output>90</output>%
+            </div>
+            <div class="three columns">
+                <label for="hpfcutoff">HPF Cutoff</label>
+                <input class="advctl" type="range" min="0" max="200" step="1" id="hpfcutoff" value="35" oninput="this.nextElementSibling.value = this.value">
+                <output>35</output> Hz
+            </div>
+            <div class="three columns">
+                <label for="lpfcutoff_sqrt">LPF Cutoff</label>
+                <input class="advctl" type="range" min="44" max="142" step="1" id="lpfcutoff_sqrt" value="123" oninput="this.nextElementSibling.value = this.value ** 2">
+                <output>15129</output> Hz
+            </div>
+        </div>
+        <div class="row">
+            <div class="three columns">
+                <label for="lshelffreq">Low Shelf Frequency</label>
+                <input class="advctl" type="range" min="20" max="300" step="1" id="lshelffreq" value="120" oninput="this.nextElementSibling.value = this.value">
+                <output>120</output> Hz
+            </div>
+            <div class="three columns">
+                <label for="lshelfgain">Low Shelf Gain</label>
+                <input class="advctl" type="range" min="-6" max="6" step="0.1" id="lshelfgain" value="-1" oninput="this.nextElementSibling.value = this.value">
+                <output>-1</output> dB
+            </div>
+            <div class="three columns">
+                <label for="hshelffreq_sqrt">High Shelf Frequency</label>
+                <input class="advctl" type="range" min="44" max="142" step="1" id="hshelffreq_sqrt" value="75" oninput="this.nextElementSibling.value = this.value ** 2">
+                <output>5625</output> Hz
+            </div>
+            <div class="three columns">
+                <label for="hshelfgain">High Shelf Gain</label>
+                <input class="advctl" type="range" min="-6" max="6" step="0.1" id="hshelfgain" value="-1" oninput="this.nextElementSibling.value = this.value">
+                <output>-1</output> dB
+            </div>
+        </div>
+        <div class="row">
+            <div class="three columns">
+                <label for="compatt_exp">Compressor Attack</label>
+                <input class="advctl" type="range" min="-3" max="1" step="0.1" id="compatt_exp" value="-2" oninput="this.nextElementSibling.value = Math.round(10 ** (+this.value + 4)) / 10">
+                <output>10</output> ms
+            </div>
+            <div class="three columns">
+                <label for="comprel_exp">Compressor Release</label>
+                <input class="advctl" type="range" min="-3" max="1" step="0.1" id="comprel_exp" value="-0.45593195565" oninput="this.nextElementSibling.value = Math.round(10 ** (+this.value + 4)) / 10">
+                <output>350</output> ms
+            </div>
+            <div class="three columns">
+                <label for="compratio">Compressor Ratio</label>
+                <input class="advctl" type="range" min="1" max="12" step="0.1" id="compratio" value="6" oninput="this.nextElementSibling.value = this.value">
+                <output>6</output> : 1
+            </div>
+            <div class="three columns">
+                <label for="compthreshold">Compressor Threshold</label>
+                <input class="advctl" type="range" min="-12" max="0" step="0.1" id="compthreshold" value="-6" oninput="this.nextElementSibling.value = this.value">
+                <output>-6</output> dB
+            </div>
+        </div>
+        <div class="row">
+            <div class="three columns">
+                <label for="limatt_exp">Limiter Attack</label>
+                <input class="advctl" type="range" min="-4" max="0" step="0.1" id="limatt_exp" value="-3" oninput="this.nextElementSibling.value = Math.round(10 ** (+this.value + 4)) / 10">
+                <output>1</output> ms
+            </div>
+            <div class="three columns">
+                <label for="limrel_exp">Limiter Release</label>
+                <input class="advctl" type="range" min="-3" max="1" step="0.1" id="limrel_exp" value="-0.69897000433" oninput="this.nextElementSibling.value = Math.round(10 ** (+this.value + 4)) / 10">
+                <output>200</output> ms
+            </div>
+            <div class="three columns">
+                <label for="limratio">Limiter Ratio</label>
+                <input class="advctl" type="range" min="1" max="24" step="0.1" id="limratio" value="18" oninput="this.nextElementSibling.value = this.value">
+                <output>18</output> : 1
+            </div>
+            <div class="three columns">
+                <label for="limthreshold">Limiter Threshold</label>
+                <input class="advctl" type="range" min="-12" max="0" step="0.1" id="limthreshold" value="-4" oninput="this.nextElementSibling.value = this.value">
+                <output>-4</output> dB
+            </div>
+        </div>
+        <div class="row">
+            <div class="three columns">
+                <label for="wowfreq">Wow Frequency</label>
+                <input class="advctl" type="range" min="0.1" max="2" step="0.1" id="wowfreq" value="0.5" oninput="this.nextElementSibling.value = this.value">
+                <output>0.5</output> Hz
+            </div>
+            <div class="three columns">
+                <label for="wowvar">Wow Variation</label>
+                <input class="advctl" type="range" min="0" max="1" step="0.01" id="wowvar" value="0.1" oninput="this.nextElementSibling.value = this.value">
+                &pm; <output>0.1</output> Hz
+            </div>
+            <div class="three columns">
+                <label for="wowdepth">Wow Depth</label>
+                <input class="advctl" type="range" min="0" max="0.75" step="0.01" id="wowdepth" value="0.1" oninput="this.nextElementSibling.value = Math.round(this.value * 100)">
+                <output>10</output>%
+            </div>
+        </div>
+        <div class="row">
+            <div class="three columns">
+                <label for="flutterfreq">Flutter Frequency</label>
+                <input class="advctl" type="range" min="2" max="24" step="0.1" id="flutterfreq" value="12" oninput="this.nextElementSibling.value = this.value">
+                <output>12</output> Hz
+            </div>
+            <div class="three columns">
+                <label for="fluttervar">Flutter Variation</label>
+                <input class="advctl" type="range" min="0" max="5" step="0.1" id="fluttervar" value="1" oninput="this.nextElementSibling.value = this.value">
+                &pm; <output>1</output> Hz
+            </div>
+            <div class="three columns">
+                <label for="flutterdepth">Flutter Depth</label>
+                <input class="advctl" type="range" min="0" max="0.05" step="0.0001" id="flutterdepth" value="0.005" oninput="this.nextElementSibling.value = Math.round(this.value * 100000) / 1000">
+                <output>0.5</output>%
+            </div>
+        </div>
+        <hr/>
+        Created by Jonathan MacKenzie
+    </div>
+
+    <script src="main.js"></script>
+</body>
+</html>
