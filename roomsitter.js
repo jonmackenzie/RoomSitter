@@ -182,7 +182,6 @@ class RoomSitter {
 
         this.sampleRate = inputBuffer.sampleRate;
 
-        // TODO optionally pre-process init buffer with "recording equipment"
         this.initBuffer = inputBuffer;
         this.tapeBuffer = inputBuffer;
         this.roomBuffer = roomBuffer;
